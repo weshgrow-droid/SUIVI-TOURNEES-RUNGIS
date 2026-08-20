@@ -335,7 +335,7 @@ function login(){
   if(document.getElementById('pwd').value===MOT_DE_PASSE){
     sessionStorage.setItem('ok','1');
     document.getElementById('login-screen').style.display='none';
-    document.getElementById('app-screen').style.display='';
+    document.getElementById('app-screen').style.display='block';
     loadFromDrive();
   }else{
     document.getElementById('login-error').textContent='Mot de passe incorrect';
@@ -353,7 +353,7 @@ window.addEventListener('load',function(){
   // Si déjà connecté, connecter automatiquement
   if(sessionStorage.getItem('ok')==='1'){
     document.getElementById('login-screen').style.display='none';
-    document.getElementById('app-screen').style.display='';
+    document.getElementById('app-screen').style.display='block';
     loadFromDrive();
   }
 });
