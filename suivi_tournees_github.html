@@ -359,6 +359,16 @@ window.addEventListener('load',function(){
 });
 setInterval(function(){if(sessionStorage.getItem('ok')==='1')loadFromDrive();},60000);
 
+// Assurer que loadFromDrive appelle setTab
+const _origLoadFromDrive = loadFromDrive;
+function loadFromDrive(){
+  // S'assurer que l'onglet historique est visible
+  if(document.getElementById('tab-historique').style.display==='none'){
+    setTab('historique');
+  }
+  _origLoadFromDrive();
+}
+
 const CL=[
   {n:'Berjac',z:'R',p:'Transporteur Rungis'},{n:'Bermudes',z:'R',p:'Primeur Passion'},
   {n:'Cultures Food',z:'H',p:'Culture Foods'},{n:'Dalloyau',z:'H',p:'Dalloyau'},
