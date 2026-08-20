@@ -67,12 +67,12 @@ tr.tot:hover td{background:#eaeae8}
 .unm{background:#fffbf0;border:1px solid #f5c842;border-radius:8px;padding:1rem;margin-top:10px}
 
 body{background:#f5f5f3;min-height:100vh}
-#login-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f5f5f3}
+#login-screen{display:flex;align-items:center;justify-content:center;min-height:100vh}
 .login-card{background:#fff;border-radius:16px;padding:2.5rem 3rem;text-align:center;box-shadow:0 4px 24px rgba(0,0,0,.1);max-width:400px;width:90%}
 .login-logo{font-size:40px;margin-bottom:12px}
 .login-title{font-size:20px;font-weight:700;margin-bottom:6px}
 .login-sub{font-size:13px;color:#888;margin-bottom:20px}
-#login-error{font-size:12px;color:#993C1D;margin-top:10px;min-height:16px}
+#login-error{font-size:12px;color:#993C1D;margin-top:10px}
 #app-screen{display:none}
 </style>
 </head>
@@ -86,7 +86,7 @@ body{background:#f5f5f3;min-height:100vh}
     <input type="password" id="pwd" placeholder="Mot de passe"
       style="width:100%;padding:10px;font-size:14px;border:1px solid #ddd;border-radius:8px;margin-bottom:12px;box-sizing:border-box"
       onkeydown="if(event.key==='Enter')login()">
-    <button onclick="login()" style="width:100%;padding:10px;background:#1D9E75;color:#fff;border:none;border-radius:8px;font-size:14px;cursor:pointer">
+    <button onclick="login()" style="width:100%;padding:10px;background:#1D9E75;color:#fff;border:none;border-radius:8px;font-size:14px;cursor:pointer;font-weight:600">
       Se connecter
     </button>
     <div id="login-error"></div>
@@ -136,7 +136,7 @@ body{background:#f5f5f3;min-height:100vh}
     <select id="mois-sel" onchange="renderSynthese()" style="min-width:170px"></select>
     <span id="mois-nb" style="font-size:12px;color:#888"></span>
     <button class="btn" onclick="effacerMois()" style="border-color:#D85A30;color:#993C1D">&#128465; Effacer ce mois</button>
-    <button class="btn btn-pdf" onclick="exportSyntPDF()" style="margin-left:auto">&#128438; PDF</button>
+    
   </div>
   <div class="metrics" id="metrics-synt"></div>
   <div class="card" style="padding:0;overflow:hidden">
@@ -150,7 +150,7 @@ body{background:#f5f5f3;min-height:100vh}
 <div id="tab-rentab" style="display:none">
   <div class="msel">
     <select id="rentab-mois-sel" onchange="renderRentab()" style="min-width:170px"></select>
-    <button class="btn btn-pdf" onclick="exportRentabPDF()" style="margin-left:auto">&#128438; PDF</button>
+    
   </div>
   <div class="card yl" style="font-size:12px;color:#666">
     <strong>Taux logistique</strong> = (Coût du jour ÷ Nb points du jour) ÷ CA client ce jour-là × 100 — Moyenne mensuelle pondérée par CA.
@@ -282,7 +282,7 @@ body{background:#f5f5f3;min-height:100vh}
         <input type="number" id="rytd-frais" value="15" min="0" step="0.5" style="width:65px;text-align:right" onchange="renderRentabYTD()">
         <span style="color:#666">€</span>
       </div>
-      <button class="btn btn-pdf" onclick="exportRentabYTDPDF()">&#128438; PDF</button>
+      
     </div>
   </div>
   <div class="metrics" id="rytd-kpis"></div>
@@ -337,7 +337,7 @@ function login(){
     document.getElementById('login-screen').style.display='none';
     document.getElementById('app-screen').style.display='';
     loadFromDrive();
-  } else {
+  }else{
     document.getElementById('login-error').textContent='Mot de passe incorrect';
   }
 }
@@ -354,7 +354,6 @@ window.addEventListener('load',function(){
   }
 });
 setInterval(function(){if(sessionStorage.getItem('ok')==='1')loadFromDrive();},60000);
-
 
 const CL=[
   {n:'Berjac',z:'R',p:'Transporteur Rungis'},{n:'Bermudes',z:'R',p:'Primeur Passion'},
@@ -455,13 +454,11 @@ function addMatch(list,matched,unm){
     }
   });
 }
-// === Config GitHub ===
 const GITHUB_REPO='weshgrow-droid/SUIVI-TOURNEES-RUNGIS';
 const GITHUB_FILE='donnees.json';
 const _t=['ghp_zIaOgs1Fk76BY','H5apqo34UoOdXKyBB1DnmyX'].join('');
 let _sha=null;
 let data={},caData={},caJourData={};
-
 function loadFromDrive(){
   const ind=document.getElementById('sync-indicator');
   if(ind){ind.textContent='⟳';ind.style.color='#888';}
@@ -474,15 +471,13 @@ function loadFromDrive(){
     if(ind){ind.textContent='✓';ind.style.color='#0F6E56';setTimeout(()=>{ind.textContent='';},3000);}
     renderYTD();
   }).catch(e=>{
-    console.error(e);
+    console.error('load error:',e);
     if(ind){ind.textContent='⚠ '+e.message;ind.style.color='#993C1D';}
     renderYTD();
   });
 }
 async function save(){
   if(!_sha)return;
-  const ind=document.getElementById('sync-indicator');
-  if(ind){ind.textContent='⟳';ind.style.color='#888';}
   try{
     const c=btoa(unescape(encodeURIComponent(JSON.stringify({v:3,tournees:data,ca:caData,caJour:caJourData}))));
     const r=await fetch('https://api.github.com/repos/'+GITHUB_REPO+'/contents/'+GITHUB_FILE,{
@@ -490,8 +485,7 @@ async function save(){
       body:JSON.stringify({message:'save',content:c,sha:_sha})
     });
     const j=await r.json();if(j.content)_sha=j.content.sha;
-    if(ind){ind.textContent='✓';ind.style.color='#0F6E56';setTimeout(()=>{ind.textContent='';},2000);}
-  }catch(e){if(ind){ind.textContent='⚠';ind.style.color='#993C1D';}}
+  }catch(e){console.error('save error:',e);}
 }
 function todayStr(){return new Date().toISOString().split('T')[0];}
 function getDate(){return document.getElementById('cur-date').value;}
@@ -833,57 +827,7 @@ function renderRentabYTD(){
   </tr>`;
 }
 
-function exportRentabYTDPDF(){
-  const annee=new Date().getFullYear();
-  const tousJours=Object.keys(data).filter(d=>d.startsWith(annee+'')&&jourValide(d)&&caJourData[d]).sort();
-  if(!tousJours.length){alert('Aucune donnée.');return;}
-  const stats={};
-  tousJours.forEach(date=>{
-    const stops=(data[date]||[]).map(s=>({client:s.client,zone:s.zone,point:s.point}));
-    const{total}=calcJour(stops);
-    const cj=caJourData[date]||{};
-    const nbCl=Object.values(cj).filter(ca=>ca>0).length;if(!nbCl)return;
-    const cmp=total/nbCl;
-    Object.entries(cj).forEach(([nom,ca])=>{
-      if(ca<=0)return;
-      if(!stats[nom])stats[nom]={coutImp:0,nbJ:0,tj:[]};
-      stats[nom].tj.push({taux:(cmp/ca)*100,ca});stats[nom].nbJ++;stats[nom].coutImp+=cmp;
-    });
-  });
-  const anneeStr=annee+'';
-  Object.keys(stats).forEach(nom=>{
-    let caYTD=0;
-    Object.entries(caData).forEach(([ym,cls])=>{if(ym.startsWith(anneeStr)&&cls[nom])caYTD+=cls[nom];});
-    stats[nom].caYTD=caYTD;
-    const tj=stats[nom].tj;const tca=tj.reduce((s,j)=>s+j.ca,0);
-    stats[nom].tauxM=tca>0?tj.reduce((s,j)=>s+j.taux*(j.ca/tca),0):0;
-  });
-  const sorted=Object.entries(stats).sort((a,b)=>b[1].tauxM-a[1].tauxM);
-  const totCA=sorted.reduce((s,[,v])=>s+v.caYTD,0);
-  const totCout=sorted.reduce((s,[,v])=>s+v.coutImp,0);
-  let tN=0,tD=0;sorted.forEach(([,st])=>st.tj.forEach(j=>{tN+=j.taux*j.ca;tD+=j.ca;}));
-  const tauxG=tD>0?tN/tD:0;const cG=tauxG>10?'#993C1D':'#0F6E56';
-  const rows=sorted.map(([nom,st])=>{
-    const cl=CLIENTS.find(c=>c.nom===nom);const z=cl?(cl.zone==='RUNGIS'?'RUNGIS':'HORS RUNGIS'):'—';
-    const c=st.tauxM>10?'#993C1D':'#0F6E56';
-    return`<tr><td>${nom}</td><td>${z}</td><td style="text-align:right">${st.caYTD>0?st.caYTD.toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2})+' €':'—'}</td><td style="text-align:right">${st.coutImp.toFixed(2)} €</td><td style="text-align:right;font-weight:700;color:${c}">${st.tauxM.toFixed(2)} %</td><td style="text-align:right">${st.nbJ}</td></tr>`;
-  }).join('');
-  mkPDF(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Rentabilité YTD ${annee}</title>${pdfStyle()}</head><body>
-<h2>Rentabilité logistique par client — YTD ${annee}</h2>
-<div class="sub">Wesh Grow · ${new Date().toLocaleDateString('fr-FR')}</div>
-<div class="kpi-row">
-  <div class="kpi"><div class="kl">Clients</div><div class="kv">${sorted.length}</div></div>
-  <div class="kpi"><div class="kl">CA total YTD</div><div class="kv green">${Math.round(totCA).toLocaleString('fr-FR')} €</div></div>
-  <div class="kpi"><div class="kl">Taux logistique YTD</div><div class="kv" style="color:${cG}">${tauxG.toFixed(2)} %</div></div>
-  <div class="kpi"><div class="kl">Coût imputé</div><div class="kv">${Math.round(totCout).toLocaleString('fr-FR')} €</div></div>
-</div>
-<table><thead><tr><th>Client</th><th>Zone</th><th style="text-align:right">CA YTD</th><th style="text-align:right">Coût imputé</th><th style="text-align:right">Taux logistique</th><th style="text-align:right">Jours</th></tr></thead>
-<tbody>${rows}</tbody>
-<tfoot><tr class="tot"><td colspan="2">Total YTD ${annee}</td><td style="text-align:right;color:#0F6E56">${Math.round(totCA).toLocaleString('fr-FR')} €</td><td style="text-align:right">${Math.round(totCout).toLocaleString('fr-FR')} €</td><td style="text-align:right;color:${cG}">${tauxG.toFixed(2)} %</td><td></td></tr></tfoot>
-</table>
-<div class="foot"><span>🟢 ≤10% · 🔴 >10% · Formule : coût moyen du point ÷ CA client/jour, pondéré par CA</span><span>1/1</span></div>
-\u003cscript\u003esetTimeout(function(){window.print();},500)\u003c/script\u003e</body></html>`);
-}
+
 
 // Dashboard YTD
 function renderYTD(){
@@ -1266,28 +1210,8 @@ async function importJSON(e){
   r.readAsText(f);e.target.value='';
 }
 // PDF exports
-function mkPDF(html){
-  const blob=new Blob([html],{type:'text/html'});
-  const url=URL.createObjectURL(blob);
-  const w=window.open(url,'_blank');
-  if(!w)alert('Autorisez les popups pour exporter en PDF.');
-  setTimeout(()=>URL.revokeObjectURL(url),60000);
-}
-function pdfStyle(){return`<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;font-size:11pt;color:#111;padding:24px 32px}h2{font-size:16pt;font-weight:700;margin-bottom:4px}.sub{font-size:10pt;color:#666;margin-bottom:18px}.kpi-row{display:flex;gap:14px;margin-bottom:18px;flex-wrap:wrap}.kpi{border:1px solid #e0e0e0;border-radius:6px;padding:10px 16px;min-width:130px;flex:1}.kl{font-size:8pt;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px}.kv{font-size:18pt;font-weight:700}.green{color:#0F6E56}.blue{color:#185FA5}table{width:100%;border-collapse:collapse;font-size:10pt}th{background:#f5f5f3;text-align:left;padding:6px 9px;font-size:8.5pt;font-weight:700;text-transform:uppercase;color:#555;border-bottom:2px solid #ccc}td{padding:6px 9px;border-bottom:1px solid #eee}tr:nth-child(even)td{background:#fafaf8}tr.tot td{font-weight:700;background:#f0f0ed;border-top:2px solid #ccc}.foot{margin-top:16px;font-size:8pt;color:#aaa;border-top:1px solid #e0e0e0;padding-top:8px;display:flex;justify-content:space-between}@media print{body{padding:10px 14px}@page{margin:1.5cm;size:A4}}</style>`;}
-function exportSyntPDF(){
-  const ym=document.getElementById('mois-sel').value;if(!ym){alert('Sélectionnez un mois.');return;}
-  const[y,m]=ym.split('-');const ml=MOIS[parseInt(m)-1]+' '+y;
-  const jours=Object.keys(data).filter(d=>d.startsWith(ym)).sort();
-  if(!jours.length){alert('Aucune donnée.');return;}
-  let totM=0,totS=0,totH=0;
-  const rows=jours.map(d=>{
-    const stops=(data[d]||[]).map(s=>({client:s.client,zone:s.zone,point:s.point}));
-    const{total,nbR,sup,hf}=calcJour(stops);totM+=total;totS+=sup;totH+=hf;
-    const[,dm,dj]=d.split('-');
-    return`<tr><td>${dj}/${dm}/${y}</td><td style="text-align:center">${stops.length}</td><td style="text-align:center">${nbR}</td><td style="text-align:center">${sup>0?sup+'×20€':'—'}</td><td style="text-align:center">${hf>0?hf+' €':'—'}</td><td style="text-align:right;font-weight:600;color:#0F6E56">${total} €</td></tr>`;
-  }).join('');
-  mkPDF(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Synthèse ${ml}</title>${pdfStyle()}</head><body><h2>Synthèse des tournées — ${ml}</h2><div class="sub">Wesh Grow · ${new Date().toLocaleDateString('fr-FR')}</div><div class="kpi-row"><div class="kpi"><div class="kl">Jours livrés</div><div class="kv">${jours.length}</div></div><div class="kpi"><div class="kl">Total HT</div><div class="kv green">${totM} €</div></div><div class="kpi"><div class="kl">Moy/jour</div><div class="kv">${Math.round(totM/jours.length)} €</div></div><div class="kpi"><div class="kl">Hors forfait</div><div class="kv blue">${totH} €</div></div></div><table><thead><tr><th>Date</th><th>Clients</th><th>Pts R.</th><th>Suppl.</th><th>Hors forfait</th><th style="text-align:right">Prix HT</th></tr></thead><tbody>${rows}</tbody><tfoot><tr class="tot"><td>Total ${ml}</td><td></td><td></td><td>${totS} suppl.</td><td style="color:#185FA5">${totH>0?totH+' €':'—'}</td><td style="text-align:right;color:#0F6E56">${totM} €</td></tr></tfoot></table><div class="foot"><span>Forfait RUNGIS 110€ · 3 pts inclus · +20€/pt suppl.</span><span>1/1</span></div>\u003cscript\u003esetTimeout(function(){window.print();},500)\u003c/script\u003e</body></html>`);
-}
+
+
 function exportCAPDF(){
   const ym=document.getElementById('ca-mois-sel').value;if(!ym){alert('Sélectionnez un mois.');return;}
   const[y,m]=ym.split('-');const ml=MOIS[parseInt(m)-1]+' '+y;
@@ -1299,7 +1223,7 @@ function exportCAPDF(){
     const md=i===0?'🥇 ':i===1?'🥈 ':i===2?'🥉 ':'';
     return`<tr><td>${md}${nom}</td><td>${z}</td><td style="text-align:right;font-weight:600;color:#0F6E56">${mt.toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2})} €</td><td style="text-align:right;color:#888">${(mt/total*100).toFixed(1)} %</td></tr>`;
   }).join('');
-  mkPDF(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>CA ${ml}</title>${pdfStyle()}</head><body><h2>Chiffre d'affaires par client — ${ml}</h2><div class="sub">Wesh Grow · ${new Date().toLocaleDateString('fr-FR')}</div><div class="kpi-row"><div class="kpi"><div class="kl">Clients</div><div class="kv">${sorted.length}</div></div><div class="kpi"><div class="kl">CA total HT</div><div class="kv green">${Math.round(total).toLocaleString('fr-FR')} €</div></div><div class="kpi"><div class="kl">Panier moyen</div><div class="kv">${Math.round(total/sorted.length).toLocaleString('fr-FR')} €</div></div></div><table><thead><tr><th>Client</th><th>Zone</th><th style="text-align:right">CA HT</th><th style="text-align:right">%</th></tr></thead><tbody>${rows}</tbody><tfoot><tr class="tot"><td colspan="2">Total ${ml}</td><td style="text-align:right;color:#0F6E56">${Math.round(total).toLocaleString('fr-FR')} €</td><td style="text-align:right">100 %</td></tr></tfoot></table><div class="foot"><span>Montants en HT</span><span>1/1</span></div>\u003cscript\u003esetTimeout(function(){window.print();},500)\u003c/script\u003e</body></html>`);
+  mkPDF(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>CA ${ml}</title>${pdfStyle()}</head><body><h2>Chiffre d'affaires par client — ${ml}</h2><div class="sub">Wesh Grow · ${new Date().toLocaleDateString('fr-FR')}</div><div class="kpi-row"><div class="kpi"><div class="kl">Clients</div><div class="kv">${sorted.length}</div></div><div class="kpi"><div class="kl">CA total HT</div><div class="kv green">${Math.round(total).toLocaleString('fr-FR')} €</div></div><div class="kpi"><div class="kl">Panier moyen</div><div class="kv">${Math.round(total/sorted.length).toLocaleString('fr-FR')} €</div></div></div><table><thead><tr><th>Client</th><th>Zone</th><th style="text-align:right">CA HT</th><th style="text-align:right">%</th></tr></thead><tbody>${rows}</tbody><tfoot><tr class="tot"><td colspan="2">Total ${ml}</td><td style="text-align:right;color:#0F6E56">${Math.round(total).toLocaleString('fr-FR')} €</td><td style="text-align:right">100 %</td></tr></tfoot></table><div class="foot"><span>Montants en HT</span><span>1/1</span></div><script>window.onload=function(){window.print();}<\/script></body></html>`);
 }
 async function exportRentabPDF(){
   const ym=document.getElementById('rentab-mois-sel').value;if(!ym){alert('Sélectionnez un mois.');return;}
@@ -1332,10 +1256,9 @@ async function exportRentabPDF(){
     const c=st.tauxM>10?'#993C1D':st.tauxM>5?'#854F0B':'#0F6E56';
     return`<tr><td>${n}</td><td>${z}</td><td style="text-align:right">${st.caMois.toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2})} €</td><td style="text-align:right">${st.coutImp.toFixed(2)} €</td><td style="text-align:right;font-weight:700;color:${c}">${st.tauxM.toFixed(2)} %</td><td style="text-align:right">${st.nbJ} j.</td></tr>`;
   }).join('');
-  mkPDF(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Rentabilité ${ml}</title>${pdfStyle()}</head><body><h2>Rentabilité logistique — ${ml}</h2><div class="sub">Wesh Grow · ${new Date().toLocaleDateString('fr-FR')}</div><div class="kpi-row"><div class="kpi"><div class="kl">Clients</div><div class="kv">${sorted.length}</div></div><div class="kpi"><div class="kl">CA total HT</div><div class="kv green">${Math.round(totCA).toLocaleString('fr-FR')} €</div></div><div class="kpi"><div class="kl">Taux logistique</div><div class="kv" style="color:${cG}">${tauxG.toFixed(2)} %</div></div></div><table><thead><tr><th>Client</th><th>Zone</th><th style="text-align:right">CA HT</th><th style="text-align:right">Coût imputé</th><th style="text-align:right">Taux logistique</th><th style="text-align:right">Jours</th></tr></thead><tbody>${rows}</tbody><tfoot><tr class="tot"><td colspan="2">Total ${ml}</td><td style="text-align:right;color:#0F6E56">${Math.round(totCA).toLocaleString('fr-FR')} €</td><td style="text-align:right">${totCout.toFixed(2)} €</td><td style="text-align:right;color:${cG}">${tauxG.toFixed(2)} %</td><td></td></tr></tfoot></table><div class="foot"><span>🟢 &lt;5% · 🟡 5–10% · 🔴 &gt;10% · Formule : coût moyen du point ÷ CA client/jour</span><span>1/1</span></div>\u003cscript\u003esetTimeout(function(){window.print();},500)\u003c/script\u003e</body></html>`);
+  mkPDF(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Rentabilité ${ml}</title>${pdfStyle()}</head><body><h2>Rentabilité logistique — ${ml}</h2><div class="sub">Wesh Grow · ${new Date().toLocaleDateString('fr-FR')}</div><div class="kpi-row"><div class="kpi"><div class="kl">Clients</div><div class="kv">${sorted.length}</div></div><div class="kpi"><div class="kl">CA total HT</div><div class="kv green">${Math.round(totCA).toLocaleString('fr-FR')} €</div></div><div class="kpi"><div class="kl">Taux logistique</div><div class="kv" style="color:${cG}">${tauxG.toFixed(2)} %</div></div></div><table><thead><tr><th>Client</th><th>Zone</th><th style="text-align:right">CA HT</th><th style="text-align:right">Coût imputé</th><th style="text-align:right">Taux logistique</th><th style="text-align:right">Jours</th></tr></thead><tbody>${rows}</tbody><tfoot><tr class="tot"><td colspan="2">Total ${ml}</td><td style="text-align:right;color:#0F6E56">${Math.round(totCA).toLocaleString('fr-FR')} €</td><td style="text-align:right">${totCout.toFixed(2)} €</td><td style="text-align:right;color:${cG}">${tauxG.toFixed(2)} %</td><td></td></tr></tfoot></table><div class="foot"><span>🟢 &lt;5% · 🟡 5–10% · 🔴 &gt;10% · Formule : coût moyen du point ÷ CA client/jour</span><span>1/1</span></div><script>window.onload=function(){window.print();}<\/script></body></html>`);
 }
 // Init
-// init géré par window.onload
 
 </script>
 </body>
