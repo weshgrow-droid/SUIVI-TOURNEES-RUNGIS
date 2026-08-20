@@ -347,6 +347,10 @@ function deconnexion(){
   document.getElementById('login-screen').style.display='flex';
 }
 window.addEventListener('load',function(){
+  // Toujours montrer le login screen au chargement
+  document.getElementById('login-screen').style.display='flex';
+  document.getElementById('app-screen').style.display='none';
+  // Si déjà connecté, connecter automatiquement
   if(sessionStorage.getItem('ok')==='1'){
     document.getElementById('login-screen').style.display='none';
     document.getElementById('app-screen').style.display='';
