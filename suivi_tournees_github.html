@@ -1332,10 +1332,8 @@ async function exportRentabPDF(){
   mkPDF(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Rentabilité ${ml}</title>${pdfStyle()}</head><body><h2>Rentabilité logistique — ${ml}</h2><div class="sub">Wesh Grow · ${new Date().toLocaleDateString('fr-FR')}</div><div class="kpi-row"><div class="kpi"><div class="kl">Clients</div><div class="kv">${sorted.length}</div></div><div class="kpi"><div class="kl">CA total HT</div><div class="kv green">${Math.round(totCA).toLocaleString('fr-FR')} €</div></div><div class="kpi"><div class="kl">Taux logistique</div><div class="kv" style="color:${cG}">${tauxG.toFixed(2)} %</div></div></div><table><thead><tr><th>Client</th><th>Zone</th><th style="text-align:right">CA HT</th><th style="text-align:right">Coût imputé</th><th style="text-align:right">Taux logistique</th><th style="text-align:right">Jours</th></tr></thead><tbody>${rows}</tbody><tfoot><tr class="tot"><td colspan="2">Total ${ml}</td><td style="text-align:right;color:#0F6E56">${Math.round(totCA).toLocaleString('fr-FR')} €</td><td style="text-align:right">${totCout.toFixed(2)} €</td><td style="text-align:right;color:${cG}">${tauxG.toFixed(2)} %</td><td></td></tr></tfoot></table><div class="foot"><span>🟢 &lt;5% · 🟡 5–10% · 🔴 &gt;10% · Formule : coût moyen du point ÷ CA client/jour</span><span>1/1</span></div>\u003cscript\u003esetTimeout(function(){window.print();},500)\u003c/script\u003e</body></html>`);
 }
 // Init
-loadFromDrive();
-
 window.addEventListener('load', function(){ initGoogle(); });
-setInterval(function(){ if(currentUser) loadFromDrive(); }, 60000);
+setInterval(function(){ loadFromDrive(); }, 60000);
 </script>
 </body>
 </html>
