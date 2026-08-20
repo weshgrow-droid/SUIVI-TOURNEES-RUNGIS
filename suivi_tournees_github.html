@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Suivi Tournées — Wesh Grow</title>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
 
 *{box-sizing:border-box;margin:0;padding:0}
@@ -82,39 +83,22 @@ body{background:#f5f5f3;min-height:100vh}
   <div class="login-card">
     <div class="login-logo">🚚</div>
     <div class="login-title">Wesh Grow — Tournées</div>
-    <div class="login-sub">Entrez le mot de passe</div>
-    <input type="password" id="pwd" placeholder="Mot de passe"
-      style="width:100%;padding:10px;font-size:14px;border:1px solid #ddd;border-radius:8px;margin-bottom:12px;box-sizing:border-box"
-      onkeydown="if(event.key==='Enter')login()">
-    <button onclick="login()" style="width:100%;padding:10px;background:#1D9E75;color:#fff;border:none;border-radius:8px;font-size:14px;cursor:pointer;font-weight:600">
-      Se connecter
-    </button>
-    <div id="login-error"></div>
+    <div class="login-sub">Connectez-vous avec votre compte Google autorisé</div>
+    <div id="google-btn" style="display:flex;justify-content:center;margin-top:8px"></div>
+    <div id="login-error" style="font-size:12px;color:#993C1D;margin-top:12px;min-height:16px"></div>
   </div>
 </div>
 
 <div id="app-screen">
 <div class="app">
-<div class="topbar">
+<div class="topbar" style="position:relative">
   <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
     <h1>Suivi des tournées <span>Wesh Grow</span></h1>
     <span id="sync-indicator" style="font-size:12px;color:#888"></span>
   </div>
   <div class="topbtns">
+    <span id="user-info" style="font-size:11px;color:#888;align-self:center"></span>
     <button class="btn" onclick="deconnexion()" style="padding:2px 8px;height:24px;font-size:11px">Déconnexion</button>
-    <label class="btn btn-add" style="cursor:pointer">&#8679; Import CSV<input type="file" accept=".csv" onchange="onFileSelect(event)" style="display:none"></label>
-    <button class="btn" onclick="exportJSON()">&#8595; Exporter</button>
-    <label class="btn" style="cursor:pointer">&#8593; Restaurer<input type="file" accept=".json" onchange="importJSON(event)" style="display:none"></label>
-    <button class="btn" onclick="resetTout()" style="border-color:#993C1D;color:#993C1D">&#9888; Reset</button>
-  </div>
-</div>
-<div class="app">
-<div class="topbar" style="position:relative">
-  <div style="display:flex;align-items:center;gap:12px">
-  <h1>Suivi des tournées <span>Wesh Grow</span></h1>
-
-</div>
-  <div class="topbtns">
     <label class="btn btn-add" style="cursor:pointer">&#8679; Import CSV<input type="file" accept=".csv" onchange="onFileSelect(event)" style="display:none"></label>
     <button class="btn" onclick="exportJSON()">&#8595; Exporter données</button>
     <label class="btn" style="cursor:pointer">&#8593; Restaurer données<input type="file" accept=".json" onchange="importJSON(event)" style="display:none"></label>
@@ -330,34 +314,71 @@ body{background:#f5f5f3;min-height:100vh}
 </div>
 
 <script>
-const MOT_DE_PASSE='weshgrow2026';
-function login(){
-  if(document.getElementById('pwd').value===MOT_DE_PASSE){
-    sessionStorage.setItem('ok','1');
-    document.getElementById('login-screen').style.display='none';
-    document.getElementById('app-screen').style.display='block';
-    loadFromDrive();
-  }else{
-    document.getElementById('login-error').textContent='Mot de passe incorrect';
+const AUTHORIZED_EMAILS=["camille.coquet@gmail.com", "camille.weshgrow@gmail.com", "charles.weshgrow@gmail.com", "glenn.cheynier@gmail.com", "loweshgrow@gmail.com", "weshgrow@gmail.com"];
+const GOOGLE_CLIENT_ID='930336176315-nstjh090aro6a4h14iomo1usodva888s.apps.googleusercontent.com';
+
+function initGoogle(){
+  google.accounts.id.initialize({
+    client_id:GOOGLE_CLIENT_ID,
+    callback:handleCredential,
+    auto_select:true
+  });
+  const saved=sessionStorage.getItem('wg_user');
+  if(saved){
+    try{
+      const u=JSON.parse(saved);
+      if(AUTHORIZED_EMAILS.includes(u.email)){showApp(u);loadFromDrive();return;}
+    }catch(e){}
+  }
+  showLogin();
+}
+
+function handleCredential(resp){
+  try{
+    const p=JSON.parse(atob(resp.credential.split('.')[1]));
+    if(!AUTHORIZED_EMAILS.includes(p.email)){
+      document.getElementById('login-error').textContent='⚠ Accès refusé : '+p.email;
+      return;
+    }
+    const u={email:p.email,name:p.name};
+    sessionStorage.setItem('wg_user',JSON.stringify(u));
+    showApp(u);loadFromDrive();
+  }catch(e){
+    document.getElementById('login-error').textContent='Erreur connexion';
   }
 }
+
+function showLogin(){
+  document.getElementById('login-screen').style.display='flex';
+  document.getElementById('app-screen').style.display='none';
+  google.accounts.id.renderButton(
+    document.getElementById('google-btn'),
+    {theme:'outline',size:'large',locale:'fr'}
+  );
+}
+
+function showApp(u){
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('app-screen').style.display='block';
+  const ui=document.getElementById('user-info');
+  if(ui&&u) ui.textContent=u.email;
+}
+
 function deconnexion(){
-  sessionStorage.removeItem('ok');
+  sessionStorage.removeItem('wg_user');
+  google.accounts.id.disableAutoSelect();
   document.getElementById('app-screen').style.display='none';
-  document.getElementById('login-screen').style.display='flex';
+  showLogin();
 }
+
 window.addEventListener('load',function(){
-  // Toujours montrer le login screen au chargement
   document.getElementById('login-screen').style.display='flex';
   document.getElementById('app-screen').style.display='none';
-  // Si déjà connecté, connecter automatiquement
-  if(sessionStorage.getItem('ok')==='1'){
-    document.getElementById('login-screen').style.display='none';
-    document.getElementById('app-screen').style.display='block';
-    loadFromDrive();
-  }
+  initGoogle();
 });
-setInterval(function(){if(sessionStorage.getItem('ok')==='1')loadFromDrive();},60000);
+setInterval(function(){
+  if(sessionStorage.getItem('wg_user')) loadFromDrive();
+},60000);
 
 // Assurer que loadFromDrive appelle setTab
 const _origLoadFromDrive = loadFromDrive;
@@ -949,6 +970,140 @@ function renderYTD(){
 }
 
 
+
+function mkPDF(html){
+  const blob=new Blob([html],{type:'text/html'});
+  const url=URL.createObjectURL(blob);
+  const w=window.open(url,'_blank');
+  if(!w)alert('Autorisez les popups pour exporter en PDF.');
+  setTimeout(()=>URL.revokeObjectURL(url),60000);
+}
+function pdfStyle(){return`<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;font-size:11pt;color:#111;padding:24px 32px}h2{font-size:16pt;font-weight:700;margin-bottom:4px}.sub{font-size:10pt;color:#666;margin-bottom:18px}.kpi-row{display:flex;gap:14px;margin-bottom:18px;flex-wrap:wrap}.kpi{border:1px solid #e0e0e0;border-radius:6px;padding:10px 16px;min-width:130px;flex:1}.kl{font-size:8pt;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px}.kv{font-size:18pt;font-weight:700}.green{color:#0F6E56}.blue{color:#185FA5}table{width:100%;border-collapse:collapse;font-size:10pt}th{background:#f5f5f3;text-align:left;padding:6px 9px;font-size:8.5pt;font-weight:700;text-transform:uppercase;color:#555;border-bottom:2px solid #ccc}td{padding:6px 9px;border-bottom:1px solid #eee}tr:nth-child(even)td{background:#fafaf8}tr.tot td{font-weight:700;background:#f0f0ed;border-top:2px solid #ccc}.foot{margin-top:16px;font-size:8pt;color:#aaa;border-top:1px solid #e0e0e0;padding-top:8px;display:flex;justify-content:space-between}@media print{body{padding:10px 14px}@page{margin:1.5cm;size:A4}}</style>`;}
+function exportSyntPDF(){
+  const ym=document.getElementById('mois-sel').value;if(!ym){alert('Sélectionnez un mois.');return;}
+  const[y,m]=ym.split('-');const ml=MOIS[parseInt(m)-1]+' '+y;
+  const jours=Object.keys(data).filter(d=>d.startsWith(ym)).sort();
+  if(!jours.length){alert('Aucune donnée.');return;}
+  let totM=0,totS=0,totH=0;
+  const rows=jours.map(d=>{
+    const stops=(data[d]||[]).map(s=>({client:s.client,zone:s.zone,point:s.point}));
+    const{total,nbR,sup,hf}=calcJour(stops);totM+=total;totS+=sup;totH+=hf;
+    const[,dm,dj]=d.split('-');
+    return`<tr><td>${dj}/${dm}/${y}</td><td style="text-align:center">${stops.length}</td><td style="text-align:center">${nbR}</td><td style="text-align:center">${sup>0?sup+'×20€':'—'}</td><td style="text-align:center">${hf>0?hf+' €':'—'}</td><td style="text-align:right;font-weight:600;color:#0F6E56">${total} €</td></tr>`;
+  }).join('');
+  mkPDF(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Synthèse ${ml}</title>${pdfStyle()}</head><body><h2>Synthèse des tournées — ${ml}</h2><div class="sub">Wesh Grow · ${new Date().toLocaleDateString('fr-FR')}</div><div class="kpi-row"><div class="kpi"><div class="kl">Jours livrés</div><div class="kv">${jours.length}</div></div><div class="kpi"><div class="kl">Total HT</div><div class="kv green">${totM} €</div></div><div class="kpi"><div class="kl">Moy/jour</div><div class="kv">${Math.round(totM/jours.length)} €</div></div><div class="kpi"><div class="kl">Hors forfait</div><div class="kv blue">${totH} €</div></div></div><table><thead><tr><th>Date</th><th>Clients</th><th>Pts R.</th><th>Suppl.</th><th>Hors forfait</th><th style="text-align:right">Prix HT</th></tr></thead><tbody>${rows}</tbody><tfoot><tr class="tot"><td>Total ${ml}</td><td></td><td></td><td>${totS} suppl.</td><td style="color:#185FA5">${totH>0?totH+' €':'—'}</td><td style="text-align:right;color:#0F6E56">${totM} €</td></tr></tfoot></table><div class="foot"><span>Forfait RUNGIS 110€ · 3 pts inclus · +20€/pt suppl.</span><span>1/1</span></div><script>setTimeout(function(){window.print();},500)\u003c/script\u003e</body></html>`);
+}
+function exportSyntPDF(){
+  const ym=document.getElementById('mois-sel').value;if(!ym){alert('Sélectionnez un mois.');return;}
+  const[y,m]=ym.split('-');const ml=MOIS[parseInt(m)-1]+' '+y;
+  const jours=Object.keys(data).filter(d=>d.startsWith(ym)).sort();
+  if(!jours.length){alert('Aucune donnée.');return;}
+  let totM=0,totS=0,totH=0;
+  const rows=jours.map(d=>{
+    const stops=(data[d]||[]).map(s=>({client:s.client,zone:s.zone,point:s.point}));
+    const{total,nbR,sup,hf}=calcJour(stops);totM+=total;totS+=sup;totH+=hf;
+    const[,dm,dj]=d.split('-');
+    return`<tr><td>${dj}/${dm}/${y}</td><td style="text-align:center">${stops.length}</td><td style="text-align:center">${nbR}</td><td style="text-align:center">${sup>0?sup+'×20€':'—'}</td><td style="text-align:center">${hf>0?hf+' €':'—'}</td><td style="text-align:right;font-weight:600;color:#0F6E56">${total} €</td></tr>`;
+  }).join('');
+  mkPDF(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Synthèse ${ml}</title>${pdfStyle()}</head><body><h2>Synthèse des tournées — ${ml}</h2><div class="sub">Wesh Grow · ${new Date().toLocaleDateString('fr-FR')}</div><div class="kpi-row"><div class="kpi"><div class="kl">Jours livrés</div><div class="kv">${jours.length}</div></div><div class="kpi"><div class="kl">Total HT</div><div class="kv green">${totM} €</div></div><div class="kpi"><div class="kl">Moy/jour</div><div class="kv">${Math.round(totM/jours.length)} €</div></div><div class="kpi"><div class="kl">Hors forfait</div><div class="kv blue">${totH} €</div></div></div><table><thead><tr><th>Date</th><th>Clients</th><th>Pts R.</th><th>Suppl.</th><th>Hors forfait</th><th style="text-align:right">Prix HT</th></tr></thead><tbody>${rows}</tbody><tfoot><tr class="tot"><td>Total ${ml}</td><td></td><td></td><td>${totS} suppl.</td><td style="color:#185FA5">${totH>0?totH+' €':'—'}</td><td style="text-align:right;color:#0F6E56">${totM} €</td></tr></tfoot></table><div class="foot"><span>Forfait RUNGIS 110€ · 3 pts inclus · +20€/pt suppl.</span><span>1/1</span></div><script>setTimeout(function(){window.print();},500)\u003c/script\u003e</body></html>`);
+}
+function exportCAPDF(){
+  const ym=document.getElementById('ca-mois-sel').value;if(!ym){alert('Sélectionnez un mois.');return;}
+  const[y,m]=ym.split('-');const ml=MOIS[parseInt(m)-1]+' '+y;
+  const clients=caData[ym]||{};if(!Object.keys(clients).length){alert('Aucune donnée CA.');return;}
+  const sorted=Object.entries(clients).sort((a,b)=>b[1]-a[1]);
+  const total=sorted.reduce((s,[,v])=>s+v,0);
+  const rows=sorted.map(([nom,mt],i)=>{
+    const cl=CLIENTS.find(c=>c.nom===nom);const z=cl?(cl.zone==='RUNGIS'?'RUNGIS':'HORS RUNGIS'):'—';
+    const md=i===0?'🥇 ':i===1?'🥈 ':i===2?'🥉 ':'';
+    return`<tr><td>${md}${nom}</td><td>${z}</td><td style="text-align:right;font-weight:600;color:#0F6E56">${mt.toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2})} €</td><td style="text-align:right;color:#888">${(mt/total*100).toFixed(1)} %</td></tr>`;
+  }).join('');
+  mkPDF(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>CA ${ml}</title>${pdfStyle()}</head><body><h2>Chiffre d'affaires par client — ${ml}</h2><div class="sub">Wesh Grow · ${new Date().toLocaleDateString('fr-FR')}</div><div class="kpi-row"><div class="kpi"><div class="kl">Clients</div><div class="kv">${sorted.length}</div></div><div class="kpi"><div class="kl">CA total HT</div><div class="kv green">${Math.round(total).toLocaleString('fr-FR')} €</div></div><div class="kpi"><div class="kl">Panier moyen</div><div class="kv">${Math.round(total/sorted.length).toLocaleString('fr-FR')} €</div></div></div><table><thead><tr><th>Client</th><th>Zone</th><th style="text-align:right">CA HT</th><th style="text-align:right">%</th></tr></thead><tbody>${rows}</tbody><tfoot><tr class="tot"><td colspan="2">Total ${ml}</td><td style="text-align:right;color:#0F6E56">${Math.round(total).toLocaleString('fr-FR')} €</td><td style="text-align:right">100 %</td></tr></tfoot></table><div class="foot"><span>Montants en HT</span><span>1/1</span></div><script>setTimeout(function(){window.print();},500)\u003c/script\u003e</body></html>`);
+}
+async function exportRentabPDF(){
+  const ym=document.getElementById('rentab-mois-sel').value;if(!ym){alert('Sélectionnez un mois.');return;}
+  const[y,m]=ym.split('-');const ml=MOIS[parseInt(m)-1]+' '+y;
+  const jours=Object.keys(data).filter(d=>d.startsWith(ym)&&caJourData[d]).sort();
+  if(!jours.length){alert('Aucune donnée.');return;}
+  const stats={};
+  jours.forEach(date=>{
+    const stops=(data[date]||[]).map(s=>({client:s.client,zone:s.zone,point:s.point}));
+    const{total}=calcJour(stops);const cj=caJourData[date]||{};
+    const nbCl=Object.values(cj).filter(ca=>ca>0).length;if(!nbCl)return;
+    const cmp=total/nbCl;
+    Object.entries(cj).forEach(([n,ca])=>{
+      if(ca<=0)return;if(!stats[n])stats[n]={caMois:0,coutImp:0,nbJ:0,tj:[]};
+      stats[n].tj.push({taux:(cmp/ca)*100,ca,cmp});stats[n].nbJ++;stats[n].coutImp+=cmp;
+    });
+  });
+  Object.keys(stats).forEach(n=>{
+    stats[n].caMois=(caData[ym]||{})[n]||0;
+    const tj=stats[n].tj;const tca=tj.reduce((s,j)=>s+j.ca,0);
+    stats[n].tauxM=tca>0?tj.reduce((s,j)=>s+j.taux*(j.ca/tca),0):0;
+  });
+  const sorted=Object.entries(stats).sort((a,b)=>b[1].tauxM-a[1].tauxM);
+  const totCA=sorted.reduce((s,[,v])=>s+v.caMois,0);
+  const totCout=sorted.reduce((s,[,v])=>s+v.coutImp,0);
+  const tauxG=totCA>0?(totCout/totCA)*100:0;
+  const cG=tauxG>10?'#993C1D':tauxG>5?'#854F0B':'#0F6E56';
+  const rows=sorted.map(([n,st])=>{
+    const cl=CLIENTS.find(c=>c.nom===n);const z=cl?(cl.zone==='RUNGIS'?'RUNGIS':'HORS RUNGIS'):'—';
+    const c=st.tauxM>10?'#993C1D':st.tauxM>5?'#854F0B':'#0F6E56';
+    return`<tr><td>${n}</td><td>${z}</td><td style="text-align:right">${st.caMois.toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2})} €</td><td style="text-align:right">${st.coutImp.toFixed(2)} €</td><td style="text-align:right;font-weight:700;color:${c}">${st.tauxM.toFixed(2)} %</td><td style="text-align:right">${st.nbJ} j.</td></tr>`;
+  }).join('');
+  mkPDF(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Rentabilité ${ml}</title>${pdfStyle()}</head><body><h2>Rentabilité logistique — ${ml}</h2><div class="sub">Wesh Grow · ${new Date().toLocaleDateString('fr-FR')}</div><div class="kpi-row"><div class="kpi"><div class="kl">Clients</div><div class="kv">${sorted.length}</div></div><div class="kpi"><div class="kl">CA total HT</div><div class="kv green">${Math.round(totCA).toLocaleString('fr-FR')} €</div></div><div class="kpi"><div class="kl">Taux logistique</div><div class="kv" style="color:${cG}">${tauxG.toFixed(2)} %</div></div></div><table><thead><tr><th>Client</th><th>Zone</th><th style="text-align:right">CA HT</th><th style="text-align:right">Coût imputé</th><th style="text-align:right">Taux logistique</th><th style="text-align:right">Jours</th></tr></thead><tbody>${rows}</tbody><tfoot><tr class="tot"><td colspan="2">Total ${ml}</td><td style="text-align:right;color:#0F6E56">${Math.round(totCA).toLocaleString('fr-FR')} €</td><td style="text-align:right">${totCout.toFixed(2)} €</td><td style="text-align:right;color:${cG}">${tauxG.toFixed(2)} %</td><td></td></tr></tfoot></table><div class="foot"><span>🟢 &lt;5% · 🟡 5–10% · 🔴 &gt;10% · Formule : coût moyen du point ÷ CA client/jour</span><span>1/1</span></div><script>setTimeout(function(){window.print();},500)\u003c/script\u003e</body></html>`);
+}
+function exportRentabYTDPDF(){
+  const annee=new Date().getFullYear();
+  const tousJours=Object.keys(data).filter(d=>d.startsWith(annee+'')&&jourValide(d)&&caJourData[d]).sort();
+  if(!tousJours.length){alert('Aucune donnée.');return;}
+  const stats={};
+  tousJours.forEach(date=>{
+    const stops=(data[date]||[]).map(s=>({client:s.client,zone:s.zone,point:s.point}));
+    const{total}=calcJour(stops);
+    const cj=caJourData[date]||{};
+    const nbCl=Object.values(cj).filter(ca=>ca>0).length;if(!nbCl)return;
+    const cmp=total/nbCl;
+    Object.entries(cj).forEach(([nom,ca])=>{
+      if(ca<=0)return;
+      if(!stats[nom])stats[nom]={coutImp:0,nbJ:0,tj:[]};
+      stats[nom].tj.push({taux:(cmp/ca)*100,ca});stats[nom].nbJ++;stats[nom].coutImp+=cmp;
+    });
+  });
+  const anneeStr=annee+'';
+  Object.keys(stats).forEach(nom=>{
+    let caYTD=0;
+    Object.entries(caData).forEach(([ym,cls])=>{if(ym.startsWith(anneeStr)&&cls[nom])caYTD+=cls[nom];});
+    stats[nom].caYTD=caYTD;
+    const tj=stats[nom].tj;const tca=tj.reduce((s,j)=>s+j.ca,0);
+    stats[nom].tauxM=tca>0?tj.reduce((s,j)=>s+j.taux*(j.ca/tca),0):0;
+  });
+  const sorted=Object.entries(stats).sort((a,b)=>b[1].tauxM-a[1].tauxM);
+  const totCA=sorted.reduce((s,[,v])=>s+v.caYTD,0);
+  const totCout=sorted.reduce((s,[,v])=>s+v.coutImp,0);
+  let tN=0,tD=0;sorted.forEach(([,st])=>st.tj.forEach(j=>{tN+=j.taux*j.ca;tD+=j.ca;}));
+  const tauxG=tD>0?tN/tD:0;const cG=tauxG>10?'#993C1D':'#0F6E56';
+  const rows=sorted.map(([nom,st])=>{
+    const cl=CLIENTS.find(c=>c.nom===nom);const z=cl?(cl.zone==='RUNGIS'?'RUNGIS':'HORS RUNGIS'):'—';
+    const c=st.tauxM>10?'#993C1D':'#0F6E56';
+    return`<tr><td>${nom}</td><td>${z}</td><td style="text-align:right">${st.caYTD>0?st.caYTD.toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2})+' €':'—'}</td><td style="text-align:right">${st.coutImp.toFixed(2)} €</td><td style="text-align:right;font-weight:700;color:${c}">${st.tauxM.toFixed(2)} %</td><td style="text-align:right">${st.nbJ}</td></tr>`;
+  }).join('');
+  mkPDF(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Rentabilité YTD ${annee}</title>${pdfStyle()}</head><body>
+<h2>Rentabilité logistique par client — YTD ${annee}</h2>
+<div class="sub">Wesh Grow · ${new Date().toLocaleDateString('fr-FR')}</div>
+<div class="kpi-row">
+  <div class="kpi"><div class="kl">Clients</div><div class="kv">${sorted.length}</div></div>
+  <div class="kpi"><div class="kl">CA total YTD</div><div class="kv green">${Math.round(totCA).toLocaleString('fr-FR')} €</div></div>
+  <div class="kpi"><div class="kl">Taux logistique YTD</div><div class="kv" style="color:${cG}">${tauxG.toFixed(2)} %</div></div>
+  <div class="kpi"><div class="kl">Coût imputé</div><div class="kv">${Math.round(totCout).toLocaleString('fr-FR')} €</div></div>
+</div>
+<table><thead><tr><th>Client</th><th>Zone</th><th style="text-align:right">CA YTD</th><th style="text-align:right">Coût imputé</th><th style="text-align:right">Taux logistique</th><th style="text-align:right">Jours</th></tr></thead>
+<tbody>${rows}</tbody>
+<tfoot><tr class="tot"><td colspan="2">Total YTD ${annee}</td><td style="text-align:right;color:#0F6E56">${Math.round(totCA).toLocaleString('fr-FR')} €</td><td style="text-align:right">${Math.round(totCout).toLocaleString('fr-FR')} €</td><td style="text-align:right;color:${cG}">${tauxG.toFixed(2)} %</td><td></td></tr></tfoot>
+</table>
+<div class="foot"><span>🟢 ≤10% · 🔴 >10% · Formule : coût moyen du point ÷ CA client/jour, pondéré par CA</span><span>1/1</span></div>
+<script>setTimeout(function(){window.print();},500)\u003c/script\u003e</body></html>`);
+}
 // Grille
 function renderGrille(){
   const g={};CLIENTS.forEach(c=>{if(!g[c.point])g[c.point]=[];g[c.point].push(c.nom);});
