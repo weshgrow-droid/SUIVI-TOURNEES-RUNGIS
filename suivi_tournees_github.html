@@ -507,7 +507,7 @@ function shiftDate(n){const d=new Date(getDate());d.setDate(d.getDate()+n);docum
 function goToday(){document.getElementById('cur-date').value=todayStr();renderDay();}
 async function setTab(t){
   ['historique','synthese','rentab','rentabytd','grille'].forEach(id=>{
-    document.getElementById('tab-'+id).style.display=id===t?'':'none';
+    document.getElementById('tab-'+id).style.display=id===t?'block':'none';
   });
   document.querySelectorAll('.tab').forEach((el,i)=>{
     el.classList.toggle('active',['historique','synthese','rentab','rentabytd','grille'][i]===t);
