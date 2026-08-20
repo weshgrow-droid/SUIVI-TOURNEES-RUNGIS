@@ -99,10 +99,10 @@ body{background:#f5f5f3;min-height:100vh}
   <div class="topbtns">
     <span id="user-info" style="font-size:11px;color:#888;align-self:center"></span>
     <button class="btn" onclick="deconnexion()" style="padding:2px 8px;height:24px;font-size:11px">Déconnexion</button>
-    <label class="btn btn-add" style="cursor:pointer">&#8679; Import CSV<input type="file" accept=".csv" onchange="onFileSelect(event)" style="display:none"></label>
-    <button class="btn" onclick="exportJSON()">&#8595; Exporter données</button>
-    <label class="btn" style="cursor:pointer">&#8593; Restaurer données<input type="file" accept=".json" onchange="importJSON(event)" style="display:none"></label>
-    <button class="btn" onclick="resetTout()" style="border-color:#993C1D;color:#993C1D">&#9888; Réinitialiser</button>
+    <button class="btn btn-add" onclick="syncSheets()" title="Importer les données depuis Google Sheets">&#8635; Sync Google Sheets</button>
+    <button class="btn" onclick="exportJSON()">&#8595; Exporter</button>
+    <label class="btn" style="cursor:pointer">&#8593; Restaurer<input type="file" accept=".json" onchange="importJSON(event)" style="display:none"></label>
+    <button class="btn" onclick="resetTout()" style="border-color:#993C1D;color:#993C1D">&#9888; Reset</button>
   </div>
 </div>
 
@@ -317,6 +317,8 @@ body{background:#f5f5f3;min-height:100vh}
 const AUTHORIZED_EMAILS=["camille.coquet@gmail.com", "camille.weshgrow@gmail.com", "charles.weshgrow@gmail.com", "glenn.cheynier@gmail.com", "loweshgrow@gmail.com", "weshgrow@gmail.com"];
 const GOOGLE_CLIENT_ID='930336176315-nstjh090aro6a4h14iomo1usodva888s.apps.googleusercontent.com';
 
+let _googleAccessToken = null;
+
 function initGoogle(){
   google.accounts.id.initialize({
     client_id:GOOGLE_CLIENT_ID,
@@ -362,6 +364,18 @@ function showApp(u){
   document.getElementById('app-screen').style.display='block';
   const ui=document.getElementById('user-info');
   if(ui&&u) ui.textContent=u.email;
+  // Demander token OAuth pour accès Sheets
+  const tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: GOOGLE_CLIENT_ID,
+    scope: 'https://www.googleapis.com/auth/spreadsheets.readonly',
+    callback: (resp) => {
+      if(resp.access_token) {
+        _googleAccessToken = resp.access_token;
+        console.log('Token Sheets OK');
+      }
+    }
+  });
+  tokenClient.requestAccessToken({prompt:''});
 }
 
 function deconnexion(){
@@ -1104,6 +1118,168 @@ function exportRentabYTDPDF(){
 <div class="foot"><span>🟢 ≤10% · 🔴 >10% · Formule : coût moyen du point ÷ CA client/jour, pondéré par CA</span><span>1/1</span></div>
 \u003cscript\u003esetTimeout(function(){window.print();},500)\u003c/script\u003e</body></html>`);
 }
+// === Sync depuis Google Sheets ===
+const SHEET_ID = '1Y_CexmqN65CNlBoiBoKHur_dL-L89tAXH5kgoVEsd50';
+const SHEET_RANGE = 'Order aggregate!A:K'; // Colonnes A à K
+
+// Clients connus dans l'app
+const CLIENTS_CONNUS_APP = ["Berjac", "Bermudes", "Cultures Food", "Dalloyau", "Divers courses Wesh Grow", "D Food BV", "Hakuba", "Halles de Murat", "Halles Prestige", "Halles Trottemant", "Laurance Primeur", "Maison Colom", "MESGUEN", "METRO Trappes", "METRO Vitry", "Natoora", "Prim fruits", "Primeur Passion", "Salade de Fruits", "Saveur Verte Hydroponique Phoc\u00e9enne", "Terre de Savoie", "Transporteur Rungis", "VSE", "Vergers de Boulogne", "C3", "Emali", "Halles Prestige", "D Food BV"];
+
+// Noms du sheet → noms internes app
+const SHEET_TO_APP = {
+  'primeurs passion': 'Primeur Passion',
+  'primeurs passion ': 'Primeur Passion',
+  'les vergers st eustache': 'VSE',
+  'les vergers saint- eustache - terre de savoie': 'Terre de Savoie',
+  'les vergers saint eustache - terre de savoie': 'Terre de Savoie',
+  'les vergers saint eustache - terre de normandie': 'VSE',
+  'maison leclaire': 'C3',
+  'leslie fruits': 'C3',
+  'm.charraire': 'M.Charraire',
+  'prim\'fruit': 'Prim fruits',
+  "prim'fruit": 'Prim fruits',
+  'les halles de murat': 'Halles Murat',
+  'halles prestige': 'Halles Prestige',
+  'les halles trottemant': 'Halles Trottemant',
+  'halles trottemant': 'Halles Trottemant',
+  'natoora': 'Natoora',
+  'metro trappes': 'METRO Trappes',
+  'metro vitry sur seine': 'METRO Vitry',
+  'metro vitry': 'METRO Vitry',
+  'maison colom': 'Maison Colom',
+  'laurance primeurs': 'Laurance Primeur',
+  'laurance primeurs ': 'Laurance Primeur',
+  'bermudes': 'Bermudes',
+  'hakuba': 'Hakuba',
+  'salade de fruits (depuis paris)': 'Salade de Fruits',
+  'salade de fruits': 'Salade de Fruits',
+  'les vergers de boulogne': 'Vergers de Boulogne',
+  'les halles de murat': 'Halles Murat',
+  'dalloyau': 'Dalloyau',
+  'cultures food': 'Cultures Food',
+  'saveur verte hydroponique phocéenne': 'Saveur Verte Hydroponique Phocéenne',
+};
+
+// Clients grossistes Paris détectés (à signaler)
+const GROSSISTES_PARIS = new Set();
+// Codes postaux Paris = 750xx et 75xxx
+function isGrossisteParisInconnu(nom, cp) {
+  const cpStr = String(cp||'');
+  const estParis = cpStr.startsWith('75');
+  const normNom = nom.trim().toLowerCase();
+  // Vérifier si le client est connu
+  const nomApp = SHEET_TO_APP[normNom] || nom;
+  const estConnu = CLIENTS.some(c => c.nom === nomApp) || 
+                   CLIENTS_CONNUS_APP.some(c => c.toLowerCase() === normNom);
+  return estParis && !estConnu;
+}
+
+async function syncSheets() {
+  if(!_googleAccessToken) {
+    alert('Vous devez vous connecter avec Google pour synchroniser le sheet.');
+    return;
+  }
+  const ind = document.getElementById('sync-indicator');
+  ind.textContent = '⟳ Sync Sheets...'; ind.style.color = '#888';
+  
+  try {
+    // Lire la 2ème table du sheet (résumé par client/date = colonnes Dénomination, Date, Somme commande)
+    // On cherche la ligne d'en-tête "Dénomination | Date de commande | Somme commande"
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent('Order aggregate!A1:K5000')}`;
+    const r = await fetch(url, {
+      headers: {'Authorization': 'Bearer ' + _googleAccessToken}
+    });
+    if(!r.ok) throw new Error('Erreur accès sheet: ' + r.status);
+    const data = await r.json();
+    const rows = data.values || [];
+    
+    // Trouver la ligne d'en-tête de la table résumé (Dénomination | Date de commande | Somme commande)
+    let headerIdx = -1;
+    for(let i=0; i<rows.length; i++) {
+      if(rows[i][0]==='Dénomination' && rows[i][1]==='Date de commande' && rows[i][2]==='Somme commande') {
+        headerIdx = i;
+        break;
+      }
+    }
+    if(headerIdx < 0) throw new Error('Table résumé non trouvée dans le sheet');
+    
+    // Parser les données résumé
+    const nouveauxClients = new Set();
+    const grossistesInconnus = new Set();
+    const caJourNew = {};
+    const caMonthNew = {};
+    
+    for(let i=headerIdx+1; i<rows.length; i++) {
+      const row = rows[i];
+      if(!row[0] || !row[1] || !row[2]) break; // Fin de table
+      
+      const nomSheet = row[0].trim();
+      const dateStr = row[1].trim(); // DD/MM/YYYY
+      const somme = parseFloat(String(row[2]).replace(',','.').replace('€','').trim()) || 0;
+      const cp = row[3] || '';
+      
+      if(somme <= 0) continue;
+      
+      // Convertir date
+      const parts = dateStr.split('/');
+      if(parts.length !== 3) continue;
+      const date = `${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`;
+      const ym = date.substring(0,7);
+      
+      // Mapper le nom
+      const normNom = nomSheet.toLowerCase();
+      const nomApp = SHEET_TO_APP[normNom] || nomSheet;
+      
+      // Vérifier si connu
+      const clientConnu = CLIENTS.some(c => c.nom === nomApp);
+      if(!clientConnu) {
+        if(isGrossisteParisInconnu(nomSheet, cp)) {
+          grossistesInconnus.add(nomSheet + ' (CP: ' + cp + ')');
+        } else {
+          nouveauxClients.add(nomSheet);
+        }
+      }
+      
+      // Accumuler CA
+      if(!caJourNew[date]) caJourNew[date] = {};
+      caJourNew[date][nomApp] = (caJourNew[date][nomApp]||0) + somme;
+      
+      if(!caMonthNew[ym]) caMonthNew[ym] = {};
+      caMonthNew[ym][nomApp] = (caMonthNew[ym][nomApp]||0) + somme;
+    }
+    
+    // Alerter sur les grossistes Paris inconnus
+    if(grossistesInconnus.size > 0) {
+      const liste = [...grossistesInconnus].join('\n');
+      alert('⚠️ Nouveaux clients grossistes Paris détectés — à signaler à l\'admin pour définir leur règle tarifaire :\n\n' + liste);
+    }
+    
+    // Confirmer l'import
+    const moisTrouves = [...new Set(Object.keys(caJourNew).map(d=>d.substring(0,7)))].sort();
+    const msg = `Importer les données du sheet ?\n\nMois: ${moisTrouves.join(', ')}\n${nouveauxClients.size > 0 ? '\nClients non reconnus (ignorés): ' + [...nouveauxClients].slice(0,10).join(', ') : ''}`;
+    if(!confirm(msg)) { ind.textContent=''; return; }
+    
+    // Appliquer - remplacer les mois concernés
+    moisTrouves.forEach(ym => {
+      Object.keys(caJourData).filter(d=>d.startsWith(ym)).forEach(d=>delete caJourData[d]);
+      delete caData[ym];
+    });
+    Object.assign(caJourData, caJourNew);
+    Object.assign(caData, caMonthNew);
+    
+    await save();
+    ind.textContent = '✓ Sync Sheets OK'; ind.style.color = '#0F6E56';
+    setTimeout(()=>{ind.textContent='';},3000);
+    renderYTD();
+    alert(`✓ Sync terminée !\n${moisTrouves.length} mois importés depuis Google Sheets.`);
+    
+  } catch(e) {
+    console.error('syncSheets error:', e);
+    ind.textContent = '⚠ Erreur sync: ' + e.message; ind.style.color = '#993C1D';
+    alert('Erreur lors de la synchronisation:\n' + e.message);
+  }
+}
+
 // Grille
 function renderGrille(){
   const g={};CLIENTS.forEach(c=>{if(!g[c.point])g[c.point]=[];g[c.point].push(c.nom);});
