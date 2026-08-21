@@ -365,17 +365,23 @@ function showApp(u){
   const ui=document.getElementById('user-info');
   if(ui&&u) ui.textContent=u.email;
   // Demander token OAuth pour accès Sheets
-  const tokenClient = google.accounts.oauth2.initTokenClient({
-    client_id: GOOGLE_CLIENT_ID,
-    scope: 'https://www.googleapis.com/auth/spreadsheets.readonly',
-    callback: (resp) => {
-      if(resp.access_token) {
-        _googleAccessToken = resp.access_token;
-        console.log('Token Sheets OK');
-      }
-    }
-  });
-  tokenClient.requestAccessToken({prompt:''});
+  // Demander token Sheets silencieusement
+  try {
+    const tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: GOOGLE_CLIENT_ID,
+      scope: 'https://www.googleapis.com/auth/spreadsheets.readonly',
+      callback: (resp) => {
+        if(resp.access_token) {
+          _googleAccessToken = resp.access_token;
+          console.log('Token Sheets OK:', resp.access_token.substring(0,10)+'...');
+        } else {
+          console.warn('Token Sheets non obtenu:', resp);
+        }
+      },
+      error_callback: (err) => { console.warn('Token error:', err); }
+    });
+    tokenClient.requestAccessToken({prompt:''});
+  } catch(e) { console.warn('initTokenClient error:', e); }
 }
 
 function deconnexion(){
@@ -1175,9 +1181,25 @@ function isGrossisteParisInconnu(nom, cp) {
 }
 
 async function syncSheets() {
+  // Si pas de token, le demander maintenant
   if(!_googleAccessToken) {
-    alert('Vous devez vous connecter avec Google pour synchroniser le sheet.');
-    return;
+    try {
+      await new Promise((resolve, reject) => {
+        const tc = google.accounts.oauth2.initTokenClient({
+          client_id: GOOGLE_CLIENT_ID,
+          scope: 'https://www.googleapis.com/auth/spreadsheets.readonly',
+          callback: (resp) => {
+            if(resp.access_token) { _googleAccessToken = resp.access_token; resolve(); }
+            else reject(new Error('Token non obtenu'));
+          },
+          error_callback: reject
+        });
+        tc.requestAccessToken({prompt:'consent'});
+      });
+    } catch(e) {
+      alert('Impossible d\'obtenir l\'accès à Google Sheets: ' + e.message);
+      return;
+    }
   }
   const ind = document.getElementById('sync-indicator');
   ind.textContent = '⟳ Sync Sheets...'; ind.style.color = '#888';
