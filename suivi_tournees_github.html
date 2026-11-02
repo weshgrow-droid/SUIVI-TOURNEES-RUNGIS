@@ -401,15 +401,6 @@ setInterval(function(){
   if(sessionStorage.getItem('wg_user')) loadFromDrive();
 },60000);
 
-// Assurer que loadFromDrive appelle setTab
-const _origLoadFromDrive = loadFromDrive;
-function loadFromDrive(){
-  // S'assurer que l'onglet historique est visible
-  if(document.getElementById('tab-historique').style.display==='none'){
-    setTab('historique');
-  }
-  _origLoadFromDrive();
-}
 
 const CL=[
   {n:'Berjac',z:'R',p:'Transporteur Rungis'},{n:'Bermudes',z:'R',p:'Primeur Passion'},
@@ -510,38 +501,45 @@ function addMatch(list,matched,unm){
     }
   });
 }
-const GITHUB_REPO='weshgrow-droid/SUIVI-TOURNEES-RUNGIS';
 const GITHUB_FILE='donnees.json';
-const _t=['ghp_zIaOgs1Fk76BY','H5apqo34UoOdXKyBB1DnmyX'].join('');
-let _sha=null;
 let data={},caData={},caJourData={};
+let _dirty=false,_premierChargement=true;
+
+// Lecture : le fichier donnees.json est servi par le site lui-même (aucun token, aucun secret dans la page)
 function loadFromDrive(){
   const ind=document.getElementById('sync-indicator');
+  if(_dirty) return; // ne jamais écraser des modifications locales non exportées
   if(ind){ind.textContent='⟳';ind.style.color='#888';}
-  fetch('https://api.github.com/repos/'+GITHUB_REPO+'/contents/'+GITHUB_FILE,{
-    headers:{'Authorization':'token '+_t,'Accept':'application/vnd.github.v3+json'}
-  }).then(r=>r.json()).then(j=>{
-    _sha=j.sha;
-    const d=JSON.parse(atob(j.content.replace(/\n/g,'')));
+  fetch(GITHUB_FILE+'?t='+Date.now(),{cache:'no-store'})
+  .then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.json();})
+  .then(d=>{
+    if(_dirty) return;
     data=d.tournees||{};caData=d.ca||{};caJourData=d.caJour||{};
-    if(ind){ind.textContent='✓';ind.style.color='#0F6E56';setTimeout(()=>{ind.textContent='';},3000);}
-    renderYTD();
-  }).catch(e=>{
+    if(ind){ind.textContent='✓';ind.style.color='#0F6E56';setTimeout(()=>{if(!_dirty)ind.textContent='';},3000);}
+    if(_premierChargement){_premierChargement=false;setTab('historique');}
+    else{const a=document.querySelector('.tab.active');if(a)a.click();}
+  })
+  .catch(e=>{
     console.error('load error:',e);
     if(ind){ind.textContent='⚠ '+e.message;ind.style.color='#993C1D';}
     renderYTD();
   });
 }
+
+// Écriture : sans token, les modifications restent locales et s'exportent vers donnees.json
+function telechargerDonnees(){
+  const payload={v:3,d:new Date().toISOString(),tournees:data,ca:caData,caJour:caJourData};
+  const blob=new Blob([JSON.stringify(payload)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='donnees.json';a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),5000);
+}
 async function save(){
-  if(!_sha)return;
-  try{
-    const c=btoa(unescape(encodeURIComponent(JSON.stringify({v:3,tournees:data,ca:caData,caJour:caJourData}))));
-    const r=await fetch('https://api.github.com/repos/'+GITHUB_REPO+'/contents/'+GITHUB_FILE,{
-      method:'PUT',headers:{'Authorization':'token '+_t,'Content-Type':'application/json'},
-      body:JSON.stringify({message:'save',content:c,sha:_sha})
-    });
-    const j=await r.json();if(j.content)_sha=j.content.sha;
-  }catch(e){console.error('save error:',e);}
+  _dirty=true;
+  const ind=document.getElementById('sync-indicator');
+  if(ind){
+    ind.style.color='#854F0B';
+    ind.innerHTML='● Modifications non partagées — <a href="#" onclick="telechargerDonnees();return false" style="color:#854F0B;font-weight:600">télécharger donnees.json</a> puis le déposer dans le dépôt GitHub';
+  }
 }
 function todayStr(){return new Date().toISOString().split('T')[0];}
 function getDate(){return document.getElementById('cur-date').value;}
@@ -1212,7 +1210,7 @@ async function syncSheets() {
     const r = await fetch(url, {
       headers: {'Authorization': 'Bearer ' + _googleAccessToken}
     });
-    if(!r.ok) throw new Error('Erreur accès sheet: ' + r.status);
+    if(!r.ok){let corps='';try{corps=(await r.text()).slice(0,300);}catch(_){} throw new Error('Erreur accès sheet (HTTP '+r.status+') '+corps);}
     const data = await r.json();
     const rows = data.values || [];
     
